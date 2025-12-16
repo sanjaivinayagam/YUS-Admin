@@ -102,6 +102,26 @@
             color: var(--muted);
             cursor: not-allowed;
         }
+        .show-data-btn {
+            background: #6c757d;
+            color: var(--light);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        .show-data-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
         .buses-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -657,6 +677,18 @@
         .schedule-info strong {
             color: var(--dark);
         }
+        /* Data Structure Display */
+        .data-structure-container {
+            max-height: 500px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
         /* Responsive Design - Optimized for iframe display */
         @media (max-width: 1200px) {
             .buses-grid {
@@ -711,7 +743,7 @@
                 width: 100%;
             }
           
-            .send-schedule-btn {
+            .send-schedule-btn, .show-data-btn {
                 width: 100%;
                 justify-content: center;
                 padding: 14px;
@@ -888,7 +920,7 @@
                 font-size: 14px;
             }
           
-            .send-schedule-btn {
+            .send-schedule-btn, .show-data-btn {
                 padding: 12px 16px;
                 font-size: 14px;
             }
@@ -1022,7 +1054,7 @@
                 font-size: 13px;
             }
           
-            .send-schedule-btn {
+            .send-schedule-btn, .show-data-btn {
                 padding: 10px 14px;
                 font-size: 13px;
             }
@@ -1109,6 +1141,7 @@
             }
           
             .send-schedule-btn:hover,
+            .show-data-btn:hover,
             .btn-primary:hover,
             .btn-secondary:hover,
             .btn-deselect:hover,
@@ -1132,7 +1165,7 @@
                 background: #fff9e6;
             }
           
-            .btn, .send-schedule-btn, .bus-status, .driver-item, .route-item {
+            .btn, .send-schedule-btn, .show-data-btn, .bus-status, .driver-item, .route-item {
                 min-height: 44px;
             }
           
@@ -1267,6 +1300,9 @@
                 <button class="send-schedule-btn" onclick="makeup()">Up</button>
                 <button class="send-schedule-btn" onclick="sendSchedule()">
                     <i class="fas fa-paper-plane"></i> Send Schedule
+                </button>
+                <button class="show-data-btn" onclick="showDataStructure()">
+                    <i class="fas fa-code"></i> Show Data
                 </button>
             </div>
         </div>
@@ -1452,6 +1488,93 @@
             } else {
                 pendingChangesEl.classList.add('hidden');
             }
+        }
+
+        // Generate the data structure in the specified format
+        function generateDataStructure() {
+            const data = {};
+            
+            // Create entries for each bus with non-default assignments
+            buses.forEach(bus => {
+                const busId = parseInt(bus.number);
+                const driverId = parseInt(bus.driverId);
+                const routeId = parseInt(bus.routeId);
+                
+                // Create bus entry if it has non-default driver or route
+                if (driverId !== DEFAULT_DRIVER_ID || routeId !== DEFAULT_ROUTE_ID) {
+                    data[`bus:${busId}`] = {
+                        driver_id: driverId,
+                        route_id: routeId
+                    };
+                }
+                
+                // Create driver entry if it's not the default driver
+                if (driverId !== DEFAULT_DRIVER_ID) {
+                    data[`driver:${driverId}`] = {
+                        bus_id: busId,
+                        route_id: routeId
+                    };
+                }
+                
+                // Create route entry if it's not the default route
+                if (routeId !== DEFAULT_ROUTE_ID) {
+                    data[`route:${routeId}`] = {
+                        driver_id: driverId,
+                        bus_id: busId
+                    };
+                }
+            });
+            
+            return data;
+        }
+
+        // Show the generated data structure
+        function showDataStructure() {
+            const data = generateDataStructure();
+            const dataString = JSON.stringify(data, null, 2);
+            
+            Swal.fire({
+                title: 'Generated Data Structure',
+                html: `
+                    <div style="text-align: left;">
+                        <p>Total entries: ${Object.keys(data).length}</p>
+                        <div class="data-structure-container">
+                            <pre>${dataString}</pre>
+                        </div>
+                        <button onclick="copyDataStructure()" style="margin-top: 15px; padding: 10px 20px; background: var(--primary); color: var(--dark); border: none; border-radius: 8px; cursor: pointer; width: 100%;">
+                            <i class="fas fa-copy"></i> Copy to Clipboard
+                        </button>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: 'Close',
+                confirmButtonColor: 'var(--primary)',
+                width: '800px'
+            });
+        }
+
+        // Copy data structure to clipboard
+        function copyDataStructure() {
+            const data = generateDataStructure();
+            const dataString = JSON.stringify(data, null, 2);
+            
+            navigator.clipboard.writeText(dataString).then(() => {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Copied!',
+                    text: 'Data structure copied to clipboard',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to copy to clipboard',
+                    confirmButtonColor: 'var(--primary)',
+                });
+            });
         }
 
         // Render buses to the grid
@@ -1887,34 +2010,6 @@
                     confirmButtonColor: 'var(--primary)',
                 });
             }
-        }
-
-        // View bus details
-        async function viewBus(busNumber) {
-            const bus = buses.find(b => b.number === busNumber);
-            if (!bus) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: `Bus ${busNumber} not found.`,
-                    confirmButtonColor: 'var(--primary)',
-                });
-                return;
-            }
-            
-            Swal.fire({
-                title: `Bus ${busNumber} Details`,
-                html: `
-                    <p><strong>Driver ID:</strong> ${bus.driverId ? bus.driverId + ' (' + getDriverName(bus.driverId) + ')' : 'None'}</p>
-                    <p><strong>Route ID:</strong> ${bus.routeId ? bus.routeId + ' (' + getRouteName(bus.routeId) + ')' : 'None'}</p>
-                    <p><strong>Status:</strong> ${getStatusText(bus.status)}</p>
-                    <p><strong>Available Drivers:</strong> ${drivers.length}</p>
-                    <p><strong>Available Routes:</strong> ${routes.length}</p>
-                `,
-                icon: 'info',
-                confirmButtonText: 'Close',
-                confirmButtonColor: 'var(--primary)',
-            });
         }
 
         // Add bus modal functions
