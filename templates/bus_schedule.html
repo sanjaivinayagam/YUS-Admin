@@ -1397,10 +1397,10 @@
                 buses = schedule.map(item => ({
                     number: item.bus_id.toString(),
                     driverId: item.driver_id.toString(),
-                    routeId: '0',
+                    routeId: item.route_id.toString(),
                     status: 'active',
                     originalDriverId: item.driver_id.toString(),
-                    originalRouteId: '0'
+                    originalRouteId: item.route_id.toString(),
                 }));
                 return buses;
             } catch (error) {
@@ -1524,7 +1524,7 @@
                     };
                 }
             });
-            
+            console.log("data - ",data)
             return data;
         }
 
