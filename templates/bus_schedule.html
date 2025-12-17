@@ -20,6 +20,10 @@
             --sidebar-bg: #f8f8f8;
             --border-radius: 12px;
             --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --warning: #dc3545;
+            --warning-light: #f8d7da;
+            --success: #28a745;
+            --success-light: #d4edda;
         }
         * {
             margin: 0;
@@ -676,6 +680,43 @@
         }
         .schedule-info strong {
             color: var(--dark);
+        }
+        /* Assignment Status Indicators */
+        .assignment-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        .status-available {
+            background: var(--success-light);
+            color: var(--success);
+        }
+        .status-taken {
+            background: var(--warning-light);
+            color: var(--warning);
+        }
+        .driver-option, .route-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        .driver-option.available {
+            background: #f8fff8;
+        }
+        .driver-option.taken {
+            background: #fff8f8;
+        }
+        .route-option.available {
+            background: #f8fff8;
+        }
+        .route-option.taken {
+            background: #fff8f8;
         }
         /* Data Structure Display */
         .data-structure-container {
@@ -1466,6 +1507,26 @@
             }
         }
 
+        // Check if a driver is already assigned to another bus
+        function getDriverAssignment(driverId) {
+            if (driverId === DEFAULT_DRIVER_ID.toString()) return null;
+            const assignedBus = buses.find(bus => 
+                bus.driverId === driverId && 
+                bus.driverId !== DEFAULT_DRIVER_ID.toString()
+            );
+            return assignedBus;
+        }
+
+        // Check if a route is already assigned to another bus
+        function getRouteAssignment(routeId) {
+            if (routeId === DEFAULT_ROUTE_ID.toString()) return null;
+            const assignedBus = buses.find(bus => 
+                bus.routeId === routeId && 
+                bus.routeId !== DEFAULT_ROUTE_ID.toString()
+            );
+            return assignedBus;
+        }
+
         // Update pending changes indicator
         function updatePendingChanges() {
             let pendingChanges = 0;
@@ -1781,7 +1842,7 @@
             }
         }
 
-        // Schedule bus function
+        // Schedule bus function - Enhanced with assignment warnings
         async function scheduleBus(busNumber) {
             try {
                 // Get cached routes for this bus
@@ -1824,18 +1885,50 @@
                 }
                 routesHtml += '</div>';
 
-                // Generate driver selection HTML from stored drivers array
+                // Generate driver selection HTML with availability indicators
                 let driverOptions = '<option value="">Select a driver</option>';
                 drivers.forEach(driver => {
                     const selected = bus.driverId === driver.driver_id.toString() ? 'selected' : '';
-                    driverOptions += `<option value="${driver.driver_id}" ${selected}>${driver.driver_name} (ID: ${driver.driver_id})</option>`;
+                    const assignedBus = getDriverAssignment(driver.driver_id.toString());
+                    const isAssignedToCurrentBus = assignedBus && assignedBus.number === busNumber;
+                    const isAssignedToOtherBus = assignedBus && assignedBus.number !== busNumber;
+                    
+                    let availabilityText = '';
+                    if (isAssignedToCurrentBus) {
+                        availabilityText = ' (Currently assigned to this bus)';
+                    } else if (isAssignedToOtherBus) {
+                        availabilityText = ` (Assigned to Bus ${assignedBus.number})`;
+                    }
+                    
+                    driverOptions += `
+                        <option value="${driver.driver_id}" ${selected} 
+                            data-available="${!isAssignedToOtherBus}" 
+                            data-assigned-bus="${assignedBus ? assignedBus.number : ''}">
+                            ${driver.driver_name} (ID: ${driver.driver_id})${availabilityText}
+                        </option>`;
                 });
 
-                // Generate route selection HTML from stored routes array
+                // Generate route selection HTML with availability indicators
                 let routeOptions = '<option value="">Select a route</option>';
                 routes.forEach(route => {
                     const selected = bus.routeId === route.route_id.toString() ? 'selected' : '';
-                    routeOptions += `<option value="${route.route_id}" ${selected}>${route.route_name} (${route.src} to ${route.dest})</option>`;
+                    const assignedBus = getRouteAssignment(route.route_id.toString());
+                    const isAssignedToCurrentBus = assignedBus && assignedBus.number === busNumber;
+                    const isAssignedToOtherBus = assignedBus && assignedBus.number !== busNumber;
+                    
+                    let availabilityText = '';
+                    if (isAssignedToCurrentBus) {
+                        availabilityText = ' (Currently assigned to this bus)';
+                    } else if (isAssignedToOtherBus) {
+                        availabilityText = ` (Assigned to Bus ${assignedBus.number})`;
+                    }
+                    
+                    routeOptions += `
+                        <option value="${route.route_id}" ${selected} 
+                            data-available="${!isAssignedToOtherBus}" 
+                            data-assigned-bus="${assignedBus ? assignedBus.number : ''}">
+                            ${route.route_name} (${route.src} to ${route.dest})${availabilityText}
+                        </option>`;
                 });
 
                 // Build the complete HTML
@@ -1847,9 +1940,10 @@
                         <div class="schedule-info">
                             <strong>Current Driver:</strong> ${bus.driverId ? getDriverName(bus.driverId) + ' (ID: ' + bus.driverId + ')' : 'None'}
                         </div>
-                        <select class="schedule-select" id="driverSelect-${busNumber}">
+                        <select class="schedule-select" id="driverSelect-${busNumber}" onchange="updateDriverStatus('${busNumber}')">
                             ${driverOptions}
                         </select>
+                        <div id="driverStatus-${busNumber}" style="font-size: 12px; padding: 5px; border-radius: 4px; display: none;"></div>
                     </div>
                     
                     <div class="schedule-section">
@@ -1857,13 +1951,14 @@
                         <div class="schedule-info">
                             <strong>Current Route:</strong> ${bus.routeId ? getRouteName(bus.routeId) + ' (ID: ' + bus.routeId + ')' : 'None'}
                         </div>
-                        <select class="schedule-select" id="routeSelect-${busNumber}">
+                        <select class="schedule-select" id="routeSelect-${busNumber}" onchange="updateRouteStatus('${busNumber}')">
                             ${routeOptions}
                         </select>
+                        <div id="routeStatus-${busNumber}" style="font-size: 12px; padding: 5px; border-radius: 4px; display: none;"></div>
                     </div>
                     
                     <div class="schedule-section">
-                        <button class="assign-schedule-btn" onclick="assignSchedule('${busNumber}')">
+                        <button class="assign-schedule-btn" onclick="assignScheduleWithWarnings('${busNumber}')">
                             <i class="fas fa-check-circle"></i> Assign Driver & Route
                         </button>
                     </div>
@@ -1875,10 +1970,14 @@
                     icon: 'info',
                     confirmButtonText: 'Close',
                     confirmButtonColor: 'var(--primary)',
-                    width: '600px',
+                    width: '650px',
                     customClass: {
                         popup: 'swal2-popup',
                         htmlContainer: 'swal2-html-container'
+                    },
+                    didOpen: () => {
+                        updateDriverStatus(busNumber);
+                        updateRouteStatus(busNumber);
                     }
                 });
             } catch (error) {
@@ -1892,8 +1991,62 @@
             }
         }
 
-        // Assign driver and route from schedule dialog
-        function assignSchedule(busNumber) {
+        // Update driver selection status display
+        function updateDriverStatus(busNumber) {
+            const driverSelect = document.getElementById(`driverSelect-${busNumber}`);
+            const driverStatus = document.getElementById(`driverStatus-${busNumber}`);
+            const selectedOption = driverSelect.options[driverSelect.selectedIndex];
+            
+            if (!selectedOption || !selectedOption.value) {
+                driverStatus.style.display = 'none';
+                return;
+            }
+            
+            const isAvailable = selectedOption.getAttribute('data-available') === 'true';
+            const assignedBus = selectedOption.getAttribute('data-assigned-bus');
+            
+            if (assignedBus && assignedBus !== busNumber) {
+                driverStatus.style.display = 'block';
+                driverStatus.style.background = 'var(--warning-light)';
+                driverStatus.style.color = 'var(--warning)';
+                driverStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> This driver is already assigned to Bus ${assignedBus}`;
+            } else {
+                driverStatus.style.display = 'block';
+                driverStatus.style.background = 'var(--success-light)';
+                driverStatus.style.color = 'var(--success)';
+                driverStatus.innerHTML = `<i class="fas fa-check-circle"></i> This driver is available`;
+            }
+        }
+
+        // Update route selection status display
+        function updateRouteStatus(busNumber) {
+            const routeSelect = document.getElementById(`routeSelect-${busNumber}`);
+            const routeStatus = document.getElementById(`routeStatus-${busNumber}`);
+            const selectedOption = routeSelect.options[routeSelect.selectedIndex];
+            
+            if (!selectedOption || !selectedOption.value) {
+                routeStatus.style.display = 'none';
+                return;
+            }
+            
+            const isAvailable = selectedOption.getAttribute('data-available') === 'true';
+            const assignedBus = selectedOption.getAttribute('data-assigned-bus');
+            
+            if (assignedBus && assignedBus !== busNumber) {
+                routeStatus.style.display = 'block';
+                routeStatus.style.background = 'var(--warning-light)';
+                routeStatus.style.color = 'var(--warning)';
+                routeStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> This route is already assigned to Bus ${assignedBus}`;
+            } else {
+                routeStatus.style.display = 'block';
+                routeStatus.style.background = 'var(--success-light)';
+                routeStatus.style.color = 'var(--success)';
+                routeStatus.innerHTML = `<i class="fas fa-check-circle"></i> This route is available`;
+            }
+        }
+
+        // Assign driver and route with warnings for existing assignments
+        async function assignScheduleWithWarnings(busNumber) {
             const bus = buses.find(b => b.number === busNumber);
             if (!bus) return;
 
@@ -1903,32 +2056,136 @@
             const selectedDriverId = driverSelect.value;
             const selectedRouteId = routeSelect.value;
             
+            // Check if there are any changes
             let changesMade = false;
-            
+            let driverChanged = false;
+            let routeChanged = false;
+
             if (selectedDriverId && selectedDriverId !== bus.driverId) {
-                bus.driverId = selectedDriverId;
+                driverChanged = true;
                 changesMade = true;
             }
-            
+
             if (selectedRouteId && selectedRouteId !== bus.routeId) {
-                bus.routeId = selectedRouteId;
+                routeChanged = true;
                 changesMade = true;
             }
-            
-            if (changesMade) {
-                renderBuses();
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Assignments Updated',
-                    text: `Assignments for Bus ${busNumber} have been updated. Don't forget to send the schedule!`,
-                    confirmButtonColor: 'var(--primary)',
-                });
-            } else {
+
+            if (!changesMade) {
                 Swal.fire({
                     icon: 'info',
                     title: 'No Changes',
                     text: 'No changes were made to the assignments.',
                     confirmButtonColor: 'var(--primary)',
+                });
+                return;
+            }
+
+            // Check for conflicts
+            let conflicts = [];
+            let warningMessages = [];
+
+            if (driverChanged) {
+                const assignedBus = getDriverAssignment(selectedDriverId);
+                if (assignedBus && assignedBus.number !== busNumber) {
+                    conflicts.push('driver');
+                    warningMessages.push(`Driver ${getDriverName(selectedDriverId)} is already assigned to Bus ${assignedBus.number}.`);
+                }
+            }
+
+            if (routeChanged) {
+                const assignedBus = getRouteAssignment(selectedRouteId);
+                if (assignedBus && assignedBus.number !== busNumber) {
+                    conflicts.push('route');
+                    warningMessages.push(`Route ${getRouteName(selectedRouteId)} is already assigned to Bus ${assignedBus.number}.`);
+                }
+            }
+
+            // If there are conflicts, show warning
+            if (conflicts.length > 0) {
+                const warningHtml = `
+                    <div style="text-align: left; padding: 10px;">
+                        <p style="color: var(--warning); font-weight: 600; margin-bottom: 10px;">
+                            <i class="fas fa-exclamation-triangle"></i> Assignment Conflicts Detected
+                        </p>
+                        <ul style="margin-bottom: 15px; padding-left: 20px;">
+                            ${warningMessages.map(msg => `<li style="margin-bottom: 5px;">${msg}</li>`).join('')}
+                        </ul>
+                        <p style="font-size: 13px; color: var(--muted);">
+                            Do you still want to assign these to Bus ${busNumber}? 
+                            This will remove them from their current assignments.
+                        </p>
+                    </div>
+                `;
+
+                Swal.fire({
+                    title: 'Assignment Conflicts',
+                    html: warningHtml,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, Assign Anyway',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: 'var(--primary)',
+                    cancelButtonColor: '#d33',
+                    reverseButtons: true,
+                    width: '550px'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Remove from previous assignments
+                        conflicts.forEach(conflictType => {
+                            if (conflictType === 'driver') {
+                                const previousBus = getDriverAssignment(selectedDriverId);
+                                if (previousBus) {
+                                    previousBus.driverId = DEFAULT_DRIVER_ID.toString();
+                                }
+                            } else if (conflictType === 'route') {
+                                const previousBus = getRouteAssignment(selectedRouteId);
+                                if (previousBus) {
+                                    previousBus.routeId = DEFAULT_ROUTE_ID.toString();
+                                }
+                            }
+                        });
+
+                        // Assign to current bus
+                        if (driverChanged) {
+                            bus.driverId = selectedDriverId;
+                        }
+                        if (routeChanged) {
+                            bus.routeId = selectedRouteId;
+                        }
+
+                        renderBuses();
+                        Swal.close(); // Close the schedule dialog
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Assignments Updated',
+                            text: `Assignments for Bus ${busNumber} have been updated. Previous assignments have been cleared.`,
+                            confirmButtonColor: 'var(--primary)',
+                            timer: 2000,
+                            showConfirmButton: true
+                        });
+                    }
+                });
+            } else {
+                // No conflicts, proceed with assignment
+                if (driverChanged) {
+                    bus.driverId = selectedDriverId;
+                }
+                if (routeChanged) {
+                    bus.routeId = selectedRouteId;
+                }
+
+                renderBuses();
+                Swal.close(); // Close the schedule dialog
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Assignments Updated',
+                    text: `Assignments for Bus ${busNumber} have been updated. Don't forget to send the schedule!`,
+                    confirmButtonColor: 'var(--primary)',
+                    timer: 1500,
+                    showConfirmButton: true
                 });
             }
         }
