@@ -1898,52 +1898,59 @@
         // Schedule bus function - Enhanced with assignment warnings
         async function scheduleBus(busNumber) {
             try {
-                // Get cached routes for this bus
-                const response = await fetch(`https://yus.kwscloud.in/yus/get-cached-routes?bus_id=${busNumber}`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch cached routes');
-                }
-                
-                const cachedRoutesData = await response.json();
-                cachedRoutes[busNumber] = cachedRoutesData;
                 const bus = buses.find(b => b.number === busNumber);
                 
-                // Generate HTML for cached routes
+                // Generate HTML for cached routes section
                 let routesHtml = '<div style="max-height: 400px; overflow-y: auto;">';
-                if (cachedRoutesData.length === 0) {
-                    routesHtml += '<p style="text-align: center; color: var(--muted); padding: 20px;">No cached routes available.</p>';
-                } else {
-                    cachedRoutesData.forEach(route => {
-                        const isActive = route.active || false;
-                        const statusClass = isActive ? 'schedule-route-active' : 'schedule-route-inactive';
-                        const statusText = isActive ? 'Active' : 'Inactive';
-                        const isSelected = selectedCachedRoute[busNumber] && selectedCachedRoute[busNumber].route_id === route.route_id;
-                        const selectedClass = isSelected ? 'selected' : '';
-                        
-                        routesHtml += `
-                            <div class="schedule-route-item ${selectedClass}" 
-                                 data-route-id="${route.route_id}" 
-                                 data-bus-id="${busNumber}" 
-                                 data-route-name="${route.route_name.replace(/"/g, '&quot;')}"
-                                 onclick="selectCachedRoute('${busNumber}', ${route.route_id}, '${route.route_name.replace(/'/g, "\\'")}', this, event)">
-                                <div class="schedule-route-header">
-                                    <div class="schedule-route-name">${route.route_name}</div>
-                                    <span class="schedule-route-status ${statusClass}" onclick="event.stopPropagation(); toggleRouteStatus(event, ${busNumber}, ${route.route_id}, '${route.route_name.replace(/'/g, "\\'")}')">
-                                        ${statusText}
-                                    </span>
-                                </div>
-                                <div style="font-size: 12px; color: var(--muted);">
-                                    From: ${route.src} to ${route.dest}
-                                </div>
-                                ${route.stops && route.stops.length > 0 ? `<div style="margin-top: 8px; font-size: 11px;">Stops: ${route.stops.length}</div>` : ''}
-                                ${isSelected ? '<div style="margin-top: 8px; font-size: 11px; color: var(--primary);"><i class="fas fa-lock"></i> Selected for assignment</div>' : ''}
-                            </div>
-                        `;
+                
+                try {
+                    // Get cached routes for this bus
+                    const response = await fetch(`https://yus.kwscloud.in/yus/get-cached-routes?bus_id=${busNumber}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch cached routes');
+                    }
+                    
+                    const cachedRoutesData = await response.json();
+                    cachedRoutes[busNumber] = cachedRoutesData;
+                    
+                    if (cachedRoutesData.length === 0) {
+                        routesHtml += '<p style="text-align: center; color: var(--muted); padding: 20px;">No cached routes available for this bus.</p>';
+                    } else {
+                        cachedRoutesData.forEach(route => {
+                            const isActive = route.active || false;
+                            const statusClass = isActive ? 'schedule-route-active' : 'schedule-route-inactive';
+                            const statusText = isActive ? 'Active' : 'Inactive';
+                            const isSelected = selectedCachedRoute[busNumber] && selectedCachedRoute[busNumber].route_id === route.route_id;
+                            const selectedClass = isSelected ? 'selected' : '';
+                            
+                            routesHtml += `
+                                <div class="schedule-route-item ${selectedClass}" 
+                                     data-route-id="${route.route_id}" 
+                                     data-bus-id="${busNumber}" 
+                                     data-route-name="${route.route_name.replace(/"/g, '&quot;')}"
+                                     onclick="selectCachedRoute('${busNumber}', ${route.route_id}, '${route.route_name.replace(/'/g, "\\'")}', this, event)">
+                                    <div class="schedule-route-header">
+                                        <div class="schedule-route-name">${route.route_name}</div>
+                                        <span class="schedule-route-status ${statusClass}" onclick="event.stopPropagation(); toggleRouteStatus(event, ${busNumber}, ${route.route_id}, '${route.route_name.replace(/'/g, "\\'")}')">
+                                            ${statusText}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 12px; color: var(--muted);">
+                                        From: ${route.src} to ${route.dest}
+                                    </div>
+                                    ${route.stops && route.stops.length > 0 ? `<div style="margin-top: 8px; font-size: 11px;">Stops: ${route.stops.length}</div>` : ''}
+                                    ${isSelected ? '<div style="margin-top: 8px; font-size: 11px; color: var(--primary);"><i class="fas fa-lock"></i> Selected for assignment</div>' : ''}
+                                </div>
+                            `;
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error fetching cached routes:', error);
+                    routesHtml += '<p style="text-align: center; color: var(--muted); padding: 20px;">No cached routes available for this bus.</p>';
                 }
                 routesHtml += '</div>';
 
