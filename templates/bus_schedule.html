@@ -356,6 +356,32 @@
             transform: scale(1.1) rotate(90deg);
             box-shadow: 0 6px 16px rgba(245, 184, 0, 0.4);
         }
+        /* Delete button styles */
+        .delete-bus-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            background: var(--warning);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            z-index: 10;
+            opacity: 0.8;
+        }
+        .delete-bus-btn:hover {
+            background: #c82333;
+            transform: scale(1.1);
+            opacity: 1;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
         .modal {
             display: none;
             position: fixed;
@@ -1711,6 +1737,9 @@
                 const defaultDriver = busDefaultDrivers[bus.number] ? ` (Default: ${getDriverName(busDefaultDrivers[bus.number])})` : '';
                 
                 busCard.innerHTML = `
+                    <button class="delete-bus-btn" onclick="deleteBus('${bus.number}')" title="Delete Bus">
+                        <i class="fas fa-trash"></i>
+                    </button>
                     <div class="bus-icon">
                         <i class="fas fa-bus"></i>
                     </div>
@@ -1738,6 +1767,95 @@
             });
           
             updatePendingChanges();
+        }
+
+        // Delete bus function
+        async function deleteBus(busNumber) {
+            // Confirm deletion
+            const result = await Swal.fire({
+                title: 'Delete Bus?',
+                html: `<p>Are you sure you want to delete <strong>Bus ${busNumber}</strong>?</p>
+                      <p class="schedule-info" style="margin-top: 10px;">
+                        <i class="fas fa-exclamation-triangle"></i> This action cannot be undone.
+                      </p>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Delete Bus',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: 'var(--primary)',
+                reverseButtons: true,
+                width: '500px'
+            });
+            
+            if (!result.isConfirmed) return;
+            
+            try {
+                // Show loading
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                loadingOverlay.classList.add('show');
+                loadingOverlay.querySelector('.loading-spinner p').textContent = 'Deleting bus...';
+                
+                // Call delete endpoint
+                const response = await fetch(`https://yus.kwscloud.in/yus/remove-bus/${busNumber}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                
+                const data = await response.json();
+                
+                // Hide loading
+                loadingOverlay.classList.remove('show');
+                
+                if (data.removed === true) {
+                    // Remove bus from local array
+                    const busIndex = buses.findIndex(b => b.number === busNumber);
+                    if (busIndex !== -1) {
+                        buses.splice(busIndex, 1);
+                    }
+                    
+                    // Remove bus from original buses
+                    const originalBusIndex = originalBuses.findIndex(b => b.number === busNumber);
+                    if (originalBusIndex !== -1) {
+                        originalBuses.splice(originalBusIndex, 1);
+                    }
+                    
+                    // Clear any cached routes for this bus
+                    delete cachedRoutes[busNumber];
+                    delete selectedCachedRoute[busNumber];
+                    
+                    // Re-render buses
+                    renderBuses();
+                    
+                    // Show success message
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Bus Deleted',
+                        text: `Bus ${busNumber} has been successfully deleted.`,
+                        confirmButtonColor: 'var(--primary)',
+                        timer: 2000,
+                        showConfirmButton: true
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Deletion Failed',
+                        text: `Failed to delete Bus ${busNumber}. Please try again.`,
+                        confirmButtonColor: 'var(--primary)',
+                    });
+                }
+            } catch (error) {
+                console.error('Error deleting bus:', error);
+                // Hide loading
+                document.getElementById('loadingOverlay').classList.remove('show');
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while deleting the bus. Please check your connection and try again.',
+                    confirmButtonColor: 'var(--primary)',
+                });
+            }
         }
 
         // Send schedule
@@ -2587,7 +2705,7 @@
             
             try {
                 const response = await fetch(`https://yus.kwscloud.in/yus/add-new-bus?bus_id=${busNumber}`, {
-                    method: 'PUT',
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 });
                 const result = await response.json();
