@@ -796,7 +796,562 @@
             align-items: center;
             gap: 15px;
         }
-        /* Responsive Design - Optimized for iframe display */
+        
+        /* =========================================== */
+        /* IFRAME-SPECIFIC MEDIA QUERIES              */
+        /* Optimized for common iframe dimensions     */
+        /* =========================================== */
+        
+        /* Medium iframe (800px - 1000px) */
+        @media (max-width: 1000px) and (min-width: 801px) {
+            .buses-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+            
+            .container {
+                padding: 0 15px;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            
+            .modal-content {
+                width: 95%;
+                padding: 24px;
+            }
+            
+            .modal-header h2 {
+                font-size: 22px;
+            }
+            
+            .send-schedule-btn, .show-data-btn {
+                padding: 10px 20px;
+                font-size: 15px;
+            }
+            
+            .bus-card {
+                padding: 14px;
+            }
+        }
+        
+        /* Small iframe (600px - 800px) */
+        @media (max-width: 800px) and (min-width: 601px) {
+            .buses-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            
+            body {
+                padding: 30px 15px;
+            }
+            
+            .container {
+                padding: 0 10px;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+                margin-bottom: 30px;
+            }
+            
+            .header h1 {
+                font-size: 28px;
+                flex-direction: row;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            .header p {
+                font-size: 14px;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            
+            .send-schedule-btn, .show-data-btn {
+                flex: 1 1 calc(50% - 6px);
+                padding: 10px 16px;
+                font-size: 14px;
+                justify-content: center;
+            }
+            
+            .bus-card {
+                padding: 14px;
+            }
+            
+            .bus-number {
+                font-size: 22px;
+            }
+            
+            .driver-info, .route-info {
+                padding: 6px 10px;
+                font-size: 13px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .btn {
+                padding: 8px;
+                font-size: 12px;
+            }
+            
+            .add-bus-btn {
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 22px;
+            }
+        }
+        
+        /* Extra small iframe (400px - 600px) - Common mobile iframe size */
+        @media (max-width: 600px) and (min-width: 401px) {
+            .buses-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            body {
+                padding: 20px 12px;
+                min-height: auto;
+            }
+            
+            .container {
+                padding: 0 8px;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+                margin-bottom: 25px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .header p {
+                font-size: 13px;
+            }
+            
+            .header-buttons {
+                width: 100%;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .send-schedule-btn, .show-data-btn {
+                width: 100%;
+                padding: 12px 16px;
+                font-size: 14px;
+                justify-content: center;
+            }
+            
+            .bus-card {
+                padding: 16px;
+            }
+            
+            .bus-icon {
+                width: 50px;
+                height: 50px;
+                margin-bottom: 10px;
+            }
+            
+            .bus-icon i {
+                font-size: 24px;
+            }
+            
+            .bus-number {
+                font-size: 20px;
+            }
+            
+            .bus-label {
+                font-size: 11px;
+            }
+            
+            .driver-info, .route-info {
+                padding: 8px 10px;
+                margin-bottom: 10px;
+            }
+            
+            .driver-label, .route-label {
+                font-size: 10px;
+            }
+            
+            .driver-id, .route-id {
+                font-size: 13px;
+            }
+            
+            .bus-status {
+                padding: 6px 12px;
+                font-size: 11px;
+                margin-bottom: 12px;
+            }
+            
+            .action-buttons {
+                gap: 8px;
+            }
+            
+            .btn {
+                padding: 10px;
+                font-size: 13px;
+                min-height: 44px;
+            }
+            
+            .add-bus-btn {
+                bottom: 16px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+                font-size: 20px;
+            }
+            
+            .modal-content {
+                padding: 20px;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+            
+            .modal-header h2 {
+                font-size: 20px;
+            }
+            
+            .modal-buttons {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .modal-buttons button {
+                width: 100%;
+                padding: 12px;
+            }
+            
+            .pending-changes {
+                top: 10px;
+                right: 10px;
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+        
+        /* Ultra small iframe (under 400px) */
+        @media (max-width: 400px) {
+            .buses-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            body {
+                padding: 15px 10px;
+                min-height: auto;
+            }
+            
+            .container {
+                padding: 0 5px;
+            }
+            
+            .header {
+                margin-bottom: 20px;
+                gap: 12px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+                gap: 6px;
+            }
+            
+            .header h1 i {
+                font-size: 20px;
+            }
+            
+            .header p {
+                font-size: 12px;
+            }
+            
+            .header-buttons {
+                gap: 8px;
+            }
+            
+            .send-schedule-btn, .show-data-btn {
+                padding: 10px 14px;
+                font-size: 13px;
+                gap: 6px;
+            }
+            
+            .bus-card {
+                padding: 14px;
+            }
+            
+            .bus-icon {
+                width: 45px;
+                height: 45px;
+                margin-bottom: 8px;
+            }
+            
+            .bus-icon i {
+                font-size: 22px;
+            }
+            
+            .bus-number {
+                font-size: 18px;
+            }
+            
+            .bus-label {
+                font-size: 10px;
+                margin-bottom: 8px;
+            }
+            
+            .driver-info, .route-info {
+                padding: 6px 8px;
+                margin-bottom: 8px;
+            }
+            
+            .driver-id, .route-id {
+                font-size: 12px;
+            }
+            
+            .bus-status {
+                padding: 5px 10px;
+                font-size: 10px;
+                margin-bottom: 10px;
+            }
+            
+            .action-buttons {
+                gap: 6px;
+            }
+            
+            .btn {
+                padding: 8px;
+                font-size: 12px;
+                min-height: 40px;
+            }
+            
+            .add-bus-btn {
+                bottom: 12px;
+                right: 12px;
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+            }
+            
+            .delete-bus-btn {
+                top: 8px;
+                right: 8px;
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+            
+            .modal-content {
+                padding: 16px;
+                margin: 8px;
+                width: calc(100% - 16px);
+            }
+            
+            .modal-header h2 {
+                font-size: 18px;
+            }
+            
+            .close-btn {
+                font-size: 20px;
+            }
+            
+            .form-group {
+                margin-bottom: 16px;
+            }
+            
+            .form-group input,
+            .form-group select {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .modal-buttons {
+                gap: 8px;
+            }
+            
+            .modal-buttons button {
+                padding: 10px;
+                font-size: 14px;
+            }
+            
+            .pending-changes {
+                top: 8px;
+                right: 8px;
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+        }
+        
+        /* Square iframe (height constraints) */
+        @media (max-height: 600px) {
+            body {
+                padding: 20px 15px;
+                min-height: auto;
+            }
+            
+            .header {
+                margin-bottom: 20px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .buses-grid {
+                max-height: calc(100vh - 150px);
+                overflow-y: auto;
+                padding-right: 5px;
+            }
+            
+            .bus-card {
+                padding: 12px;
+            }
+            
+            .bus-icon {
+                width: 45px;
+                height: 45px;
+                margin-bottom: 8px;
+            }
+            
+            .bus-icon i {
+                font-size: 22px;
+            }
+            
+            .bus-number {
+                font-size: 20px;
+            }
+            
+            .action-buttons {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            
+            .btn {
+                flex: 1 1 45%;
+                font-size: 12px;
+                padding: 6px;
+            }
+            
+            .modal-content {
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+        }
+        
+        /* Very short iframe */
+        @media (max-height: 400px) {
+            body {
+                padding: 10px 8px;
+            }
+            
+            .header {
+                margin-bottom: 15px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+                margin-bottom: 4px;
+            }
+            
+            .header p {
+                font-size: 11px;
+            }
+            
+            .buses-grid {
+                max-height: calc(100vh - 100px);
+                overflow-y: auto;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .bus-card {
+                padding: 10px;
+            }
+            
+            .bus-icon {
+                width: 35px;
+                height: 35px;
+                margin-bottom: 6px;
+            }
+            
+            .bus-icon i {
+                font-size: 18px;
+            }
+            
+            .bus-number {
+                font-size: 16px;
+                margin-bottom: 2px;
+            }
+            
+            .bus-label {
+                font-size: 9px;
+                margin-bottom: 6px;
+            }
+            
+            .driver-info, .route-info {
+                padding: 4px 6px;
+                margin-bottom: 6px;
+            }
+            
+            .driver-label, .route-label {
+                font-size: 9px;
+            }
+            
+            .driver-id, .route-id {
+                font-size: 11px;
+            }
+            
+            .bus-status {
+                padding: 4px 8px;
+                font-size: 10px;
+                margin-bottom: 8px;
+            }
+            
+            .action-buttons {
+                gap: 6px;
+            }
+            
+            .btn {
+                padding: 6px;
+                font-size: 11px;
+                min-height: 36px;
+            }
+            
+            .add-bus-btn {
+                bottom: 10px;
+                right: 10px;
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+        }
+        
+        /* =========================================== */
+        /* EXISTING MEDIA QUERIES (preserved)         */
+        /* =========================================== */
+        
         @media (max-width: 1200px) {
             .buses-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -825,6 +1380,7 @@
                 font-size: 22px;
             }
         }
+        
         @media (max-width: 768px) {
             body {
                 padding: 30px 15px;
@@ -950,6 +1506,7 @@
                 font-size: 11px;
             }
         }
+        
         @media (max-width: 640px) and (orientation: landscape) {
             body {
                 padding: 20px 12px;
@@ -1010,6 +1567,7 @@
                 max-height: 200px;
             }
         }
+        
         @media (max-width: 480px) {
             body {
                 padding: 20px 12px;
@@ -1152,6 +1710,7 @@
                 font-size: 11px;
             }
         }
+        
         @media (max-width: 360px) {
             body {
                 padding: 16px 10px;
@@ -1241,6 +1800,7 @@
                 font-size: 13px;
             }
         }
+        
         @media (hover: none) and (pointer: coarse) {
             .bus-card:hover {
                 transform: none;
@@ -1293,6 +1853,7 @@
                 border: 2px solid var(--light-gray);
             }
         }
+        
         @media (max-height: 600px) {
             body {
                 padding: 20px 15px;
@@ -1317,6 +1878,7 @@
                 max-height: 250px;
             }
         }
+        
         @media (max-width: 768px) and (orientation: landscape) {
             .buses-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -1340,6 +1902,7 @@
                 overflow-y: auto;
             }
         }
+        
         @media (max-height: 400px) {
             .header {
                 margin-bottom: 15px;
