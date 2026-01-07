@@ -796,6 +796,156 @@
             align-items: center;
             gap: 15px;
         }
+
+        /* ENHANCED DRIVER AND ROUTE SELECTION STYLES */
+        .selection-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            padding: 8px;
+            background: var(--light);
+        }
+
+        .driver-selection-item, .route-selection-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--light-gray);
+            background: var(--light);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .driver-selection-item:hover, .route-selection-item:hover {
+            background: #fff9e6;
+            border-color: var(--primary);
+            transform: translateX(3px);
+        }
+
+        .driver-selection-item.selected, .route-selection-item.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--dark);
+        }
+
+        .driver-selection-item.selected .driver-info-text,
+        .route-selection-item.selected .route-info-text {
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .driver-selection-item.assigned, .route-selection-item.assigned {
+            background: var(--warning-light);
+            border-color: var(--warning);
+        }
+
+        .driver-selection-item.available, .route-selection-item.available {
+            background: var(--success-light);
+            border-color: var(--success);
+        }
+
+        .driver-info-text, .route-info-text {
+            flex: 1;
+        }
+
+        .driver-name-text, .route-name-text {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .driver-id-text, .route-id-text {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: monospace;
+        }
+
+        .assignment-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        .badge-assigned {
+            background: var(--warning);
+            color: white;
+        }
+
+        .badge-available {
+            background: var(--success);
+            color: white;
+        }
+
+        .badge-current {
+            background: var(--primary);
+            color: var(--dark);
+        }
+
+        .assignment-details {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+            font-style: italic;
+        }
+
+        .assignment-details.assigned {
+            color: var(--warning);
+        }
+
+        .assignment-details.available {
+            color: var(--success);
+        }
+
+        .selection-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .selection-count {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .current-selection {
+            background: #f0f8ff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #d1e7ff;
+        }
+
+        .current-selection h4 {
+            font-size: 14px;
+            color: var(--primary-dark);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .current-selection p {
+            font-size: 13px;
+            color: var(--dark);
+            margin: 0;
+        }
+
+        .no-items {
+            text-align: center;
+            padding: 20px;
+            color: var(--muted);
+            font-style: italic;
+        }
         
         /* =========================================== */
         /* IFRAME-SPECIFIC MEDIA QUERIES              */
@@ -2033,6 +2183,8 @@
         let busDefaultDrivers = {};
         let cachedRoutes = {}; // Store cached routes by bus number
         let selectedCachedRoute = {}; // Store selected cached route by bus number
+        let selectedDriver = {}; // Store selected driver by bus number
+        let selectedRoute = {}; // Store selected route by bus number
         let currentScheduleModal = null; // Store reference to current modal
 
         // Initialize application
@@ -2386,6 +2538,8 @@
                     // Clear any cached routes for this bus
                     delete cachedRoutes[busNumber];
                     delete selectedCachedRoute[busNumber];
+                    delete selectedDriver[busNumber];
+                    delete selectedRoute[busNumber];
                     
                     // Re-render buses
                     renderBuses();
@@ -2576,7 +2730,7 @@
             }
         }
 
-        // Schedule bus function - Enhanced with assignment warnings
+        // Schedule bus function - Enhanced with styled driver and route selection
         async function scheduleBus(busNumber) {
             try {
                 const bus = buses.find(b => b.number === busNumber);
@@ -2635,51 +2789,101 @@
                 }
                 routesHtml += '</div>';
 
-                // Generate driver selection HTML with availability indicators
-                let driverOptions = '<option value="">Select a driver</option>';
-                drivers.forEach(driver => {
-                    const selected = bus.driverId === driver.driver_id.toString() ? 'selected' : '';
-                    const assignedBus = getDriverAssignment(driver.driver_id.toString());
-                    const isAssignedToCurrentBus = assignedBus && assignedBus.number === busNumber;
-                    const isAssignedToOtherBus = assignedBus && assignedBus.number !== busNumber;
-                    
-                    let availabilityText = '';
-                    if (isAssignedToCurrentBus) {
-                        availabilityText = ' (Currently assigned to this bus)';
-                    } else if (isAssignedToOtherBus) {
-                        availabilityText = ` (Assigned to Bus ${assignedBus.number})`;
-                    }
-                    
-                    driverOptions += `
-                        <option value="${driver.driver_id}" ${selected} 
-                            data-available="${!isAssignedToOtherBus}" 
-                            data-assigned-bus="${assignedBus ? assignedBus.number : ''}">
-                            ${driver.driver_name} (ID: ${driver.driver_id})${availabilityText}
-                        </option>`;
-                });
+                // Generate driver selection HTML with styled list
+                let driversHtml = '';
+                if (drivers.length === 0) {
+                    driversHtml = '<div class="no-items">No drivers available</div>';
+                } else {
+                    driversHtml = '<div class="selection-container">';
+                    drivers.forEach(driver => {
+                        const assignedBus = getDriverAssignment(driver.driver_id.toString());
+                        const isAssignedToCurrentBus = assignedBus && assignedBus.number === busNumber;
+                        const isAssignedToOtherBus = assignedBus && assignedBus.number !== busNumber;
+                        const isSelected = selectedDriver[busNumber] && selectedDriver[busNumber].driver_id === driver.driver_id;
+                        
+                        let statusClass = 'available';
+                        let badgeClass = 'badge-available';
+                        let badgeText = 'Available';
+                        let detailsText = '';
+                        
+                        if (isAssignedToCurrentBus) {
+                            statusClass = 'assigned';
+                            badgeClass = 'badge-current';
+                            badgeText = 'Current';
+                            detailsText = `Currently assigned to this bus`;
+                        } else if (isAssignedToOtherBus) {
+                            statusClass = 'assigned';
+                            badgeClass = 'badge-assigned';
+                            badgeText = 'Assigned';
+                            detailsText = `Already assigned to Bus ${assignedBus.number}`;
+                        }
+                        
+                        const selectedClass = isSelected ? 'selected' : '';
+                        
+                        driversHtml += `
+                            <div class="driver-selection-item ${statusClass} ${selectedClass}" 
+                                 data-driver-id="${driver.driver_id}"
+                                 data-bus-id="${busNumber}"
+                                 onclick="selectDriver('${busNumber}', ${driver.driver_id}, '${driver.driver_name.replace(/'/g, "\\'")}', this)">
+                                <div class="driver-info-text">
+                                    <div class="driver-name-text">${driver.driver_name}</div>
+                                    <div class="driver-id-text">ID: ${driver.driver_id}</div>
+                                    ${detailsText ? `<div class="assignment-details ${statusClass}">${detailsText}</div>` : ''}
+                                </div>
+                                <span class="assignment-badge ${badgeClass}">${badgeText}</span>
+                            </div>
+                        `;
+                    });
+                    driversHtml += '</div>';
+                }
 
-                // Generate route selection HTML with availability indicators
-                let routeOptions = '<option value="">Select a route</option>';
-                routes.forEach(route => {
-                    const selected = bus.routeId === route.route_id.toString() ? 'selected' : '';
-                    const assignedBus = getRouteAssignment(route.route_id.toString());
-                    const isAssignedToCurrentBus = assignedBus && assignedBus.number === busNumber;
-                    const isAssignedToOtherBus = assignedBus && assignedBus.number !== busNumber;
-                    
-                    let availabilityText = '';
-                    if (isAssignedToCurrentBus) {
-                        availabilityText = ' (Currently assigned to this bus)';
-                    } else if (isAssignedToOtherBus) {
-                        availabilityText = ` (Assigned to Bus ${assignedBus.number})`;
-                    }
-                    
-                    routeOptions += `
-                        <option value="${route.route_id}" ${selected} 
-                            data-available="${!isAssignedToOtherBus}" 
-                            data-assigned-bus="${assignedBus ? assignedBus.number : ''}">
-                            ${route.route_name} (${route.src} to ${route.dest})${availabilityText}
-                        </option>`;
-                });
+                // Generate route selection HTML with styled list
+                let routesListHtml = '';
+                if (routes.length === 0) {
+                    routesListHtml = '<div class="no-items">No routes available</div>';
+                } else {
+                    routesListHtml = '<div class="selection-container">';
+                    routes.forEach(route => {
+                        const assignedBus = getRouteAssignment(route.route_id.toString());
+                        const isAssignedToCurrentBus = assignedBus && assignedBus.number === busNumber;
+                        const isAssignedToOtherBus = assignedBus && assignedBus.number !== busNumber;
+                        const isSelected = selectedRoute[busNumber] && selectedRoute[busNumber].route_id === route.route_id;
+                        
+                        let statusClass = 'available';
+                        let badgeClass = 'badge-available';
+                        let badgeText = 'Available';
+                        let detailsText = '';
+                        
+                        if (isAssignedToCurrentBus) {
+                            statusClass = 'assigned';
+                            badgeClass = 'badge-current';
+                            badgeText = 'Current';
+                            detailsText = `Currently assigned to this bus`;
+                        } else if (isAssignedToOtherBus) {
+                            statusClass = 'assigned';
+                            badgeClass = 'badge-assigned';
+                            badgeText = 'Assigned';
+                            detailsText = `Already assigned to Bus ${assignedBus.number}`;
+                        }
+                        
+                        const selectedClass = isSelected ? 'selected' : '';
+                        
+                        routesListHtml += `
+                            <div class="route-selection-item ${statusClass} ${selectedClass}" 
+                                 data-route-id="${route.route_id}"
+                                 data-bus-id="${busNumber}"
+                                 onclick="selectRoute('${busNumber}', ${route.route_id}, '${route.route_name.replace(/'/g, "\\'")}', this)">
+                                <div class="route-info-text">
+                                    <div class="route-name-text">${route.route_name}</div>
+                                    <div class="route-id-text">ID: ${route.route_id} • ${route.src} to ${route.dest}</div>
+                                    ${detailsText ? `<div class="assignment-details ${statusClass}">${detailsText}</div>` : ''}
+                                </div>
+                                <span class="assignment-badge ${badgeClass}">${badgeText}</span>
+                            </div>
+                        `;
+                    });
+                    routesListHtml += '</div>';
+                }
 
                 // Build the complete HTML
                 const completeHtml = `
@@ -2692,26 +2896,32 @@
                     </div>
                     
                     <div class="schedule-section">
-                        <h3><i class="fas fa-user-tie"></i> Driver Assignment</h3>
-                        <div class="schedule-info">
-                            <strong>Current Driver:</strong> ${bus.driverId ? getDriverName(bus.driverId) + ' (ID: ' + bus.driverId + ')' : 'None'}
+                        <div class="selection-header">
+                            <h3><i class="fas fa-user-tie"></i> Driver Assignment</h3>
+                            <div class="selection-count">${drivers.length} drivers</div>
                         </div>
-                        <select class="schedule-select" id="driverSelect-${busNumber}" onchange="updateDriverStatus('${busNumber}')">
-                            ${driverOptions}
-                        </select>
-                        <div id="driverStatus-${busNumber}" style="font-size: 12px; padding: 5px; border-radius: 4px; display: none;"></div>
+                        ${selectedDriver[busNumber] ? `
+                            <div class="current-selection">
+                                <h4><i class="fas fa-check-circle" style="color: var(--success);"></i> Selected Driver</h4>
+                                <p>${selectedDriver[busNumber].driver_name} (ID: ${selectedDriver[busNumber].driver_id})</p>
+                            </div>
+                        ` : ''}
+                        ${driversHtml}
                     </div>
                     
                     <div class="schedule-section">
-                        <h3><i class="fas fa-route"></i> Route Assignment</h3>
-                        <div class="schedule-info">
-                            <strong>Current Route:</strong> ${bus.routeId ? getRouteName(bus.routeId) + ' (ID: ' + bus.routeId + ')' : 'None'}
-                            ${selectedCachedRoute[busNumber] ? `<br><strong>Selected Cached Route:</strong> ${selectedCachedRoute[busNumber].route_name} (ID: ${selectedCachedRoute[busNumber].route_id})` : ''}
+                        <div class="selection-header">
+                            <h3><i class="fas fa-route"></i> Route Assignment</h3>
+                            <div class="selection-count">${routes.length} routes</div>
                         </div>
-                        <select class="schedule-select" id="routeSelect-${busNumber}" onchange="updateRouteStatus('${busNumber}')">
-                            ${routeOptions}
-                        </select>
-                        <div id="routeStatus-${busNumber}" style="font-size: 12px; padding: 5px; border-radius: 4px; display: none;"></div>
+                        ${selectedRoute[busNumber] || selectedCachedRoute[busNumber] ? `
+                            <div class="current-selection">
+                                <h4><i class="fas fa-check-circle" style="color: var(--success);"></i> Selected Route</h4>
+                                <p>${selectedRoute[busNumber] ? selectedRoute[busNumber].route_name : selectedCachedRoute[busNumber].route_name} 
+                                (ID: ${selectedRoute[busNumber] ? selectedRoute[busNumber].route_id : selectedCachedRoute[busNumber].route_id})</p>
+                            </div>
+                        ` : ''}
+                        ${routesListHtml}
                     </div>
                     
                     <div class="schedule-section">
@@ -2736,15 +2946,19 @@
                         htmlContainer: 'swal2-html-container'
                     },
                     didOpen: () => {
-                        updateDriverStatus(busNumber);
-                        updateRouteStatus(busNumber);
+                        // If a driver is already assigned to this bus, select it
+                        if (bus.driverId && bus.driverId !== DEFAULT_DRIVER_ID.toString()) {
+                            const driverItem = document.querySelector(`.driver-selection-item[data-driver-id="${bus.driverId}"][data-bus-id="${busNumber}"]`);
+                            if (driverItem) {
+                                selectDriver(busNumber, parseInt(bus.driverId), getDriverName(bus.driverId), driverItem);
+                            }
+                        }
                         
-                        // If a cached route is selected, set it in the dropdown
-                        if (selectedCachedRoute[busNumber]) {
-                            const routeSelect = document.getElementById(`routeSelect-${busNumber}`);
-                            if (routeSelect) {
-                                routeSelect.value = selectedCachedRoute[busNumber].route_id;
-                                updateRouteStatus(busNumber);
+                        // If a route is already assigned to this bus, select it
+                        if (bus.routeId && bus.routeId !== DEFAULT_ROUTE_ID.toString()) {
+                            const routeItem = document.querySelector(`.route-selection-item[data-route-id="${bus.routeId}"][data-bus-id="${busNumber}"]`);
+                            if (routeItem) {
+                                selectRoute(busNumber, parseInt(bus.routeId), getRouteName(bus.routeId), routeItem);
                             }
                         }
                     }
@@ -2760,6 +2974,89 @@
             }
         }
 
+        // Select driver function
+        function selectDriver(busNumber, driverId, driverName, element) {
+            // Remove selected class from all driver items for this bus
+            const allDrivers = document.querySelectorAll(`.driver-selection-item[data-bus-id="${busNumber}"]`);
+            allDrivers.forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked driver
+            element.classList.add('selected');
+            
+            // Store selected driver
+            selectedDriver[busNumber] = {
+                driver_id: driverId,
+                driver_name: driverName
+            };
+            
+            // Update the selected driver info in the UI
+            updateSelectionInfo(busNumber);
+        }
+
+        // Select route function
+        function selectRoute(busNumber, routeId, routeName, element) {
+            // Remove selected class from all route items for this bus
+            const allRoutes = document.querySelectorAll(`.route-selection-item[data-bus-id="${busNumber}"]`);
+            allRoutes.forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked route
+            element.classList.add('selected');
+            
+            // Store selected route
+            selectedRoute[busNumber] = {
+                route_id: routeId,
+                route_name: routeName
+            };
+            
+            // Update the selected route info in the UI
+            updateSelectionInfo(busNumber);
+        }
+
+        // Update selection info in the UI
+        function updateSelectionInfo(busNumber) {
+            // Update driver selection display
+            const driverSection = document.querySelector('.schedule-section:nth-child(2)');
+            if (driverSection && selectedDriver[busNumber]) {
+                const existingSelection = driverSection.querySelector('.current-selection');
+                if (existingSelection) {
+                    existingSelection.querySelector('p').textContent = 
+                        `${selectedDriver[busNumber].driver_name} (ID: ${selectedDriver[busNumber].driver_id})`;
+                } else {
+                    const selectionDiv = document.createElement('div');
+                    selectionDiv.className = 'current-selection';
+                    selectionDiv.innerHTML = `
+                        <h4><i class="fas fa-check-circle" style="color: var(--success);"></i> Selected Driver</h4>
+                        <p>${selectedDriver[busNumber].driver_name} (ID: ${selectedDriver[busNumber].driver_id})</p>
+                    `;
+                    driverSection.insertBefore(selectionDiv, driverSection.querySelector('.selection-container'));
+                }
+            }
+            
+            // Update route selection display
+            const routeSection = document.querySelector('.schedule-section:nth-child(3)');
+            if (routeSection && (selectedRoute[busNumber] || selectedCachedRoute[busNumber])) {
+                const existingSelection = routeSection.querySelector('.current-selection');
+                const routeName = selectedRoute[busNumber] ? selectedRoute[busNumber].route_name : selectedCachedRoute[busNumber].route_name;
+                const routeId = selectedRoute[busNumber] ? selectedRoute[busNumber].route_id : selectedCachedRoute[busNumber].route_id;
+                
+                if (existingSelection) {
+                    existingSelection.querySelector('p').textContent = `${routeName} (ID: ${routeId})`;
+                } else {
+                    const selectionDiv = document.createElement('div');
+                    selectionDiv.className = 'current-selection';
+                    selectionDiv.innerHTML = `
+                        <h4><i class="fas fa-check-circle" style="color: var(--success);"></i> Selected Route</h4>
+                        <p>${routeName} (ID: ${routeId})</p>
+                    `;
+                    routeSection.insertBefore(selectionDiv, routeSection.querySelector('.selection-container'));
+                }
+            }
+        }
+
         // Select cached route - Fixed to keep modal open
         function selectCachedRoute(busNumber, routeId, routeName, element, event) {
             event.preventDefault();
@@ -2768,6 +3065,12 @@
             // Remove selected class from all cached routes
             const allRoutes = document.querySelectorAll(`.schedule-route-item[data-bus-id="${busNumber}"]`);
             allRoutes.forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Remove selected class from all route selection items
+            const allRouteSelections = document.querySelectorAll(`.route-selection-item[data-bus-id="${busNumber}"]`);
+            allRouteSelections.forEach(item => {
                 item.classList.remove('selected');
             });
             
@@ -2780,27 +3083,13 @@
                 route_name: routeName
             };
             
-            // Set the route select dropdown to the selected cached route
-            const routeSelect = document.getElementById(`routeSelect-${busNumber}`);
-            if (routeSelect) {
-                routeSelect.value = routeId;
-                updateRouteStatus(busNumber);
-            }
+            // Clear any selected route from the route list
+            delete selectedRoute[busNumber];
             
             // Update the selected route info in the UI
-            const scheduleSections = document.querySelectorAll('.schedule-section');
-            if (scheduleSections.length > 2) {
-                const routeInfo = scheduleSections[2].querySelector('.schedule-info');
-                if (routeInfo) {
-                    const bus = buses.find(b => b.number === busNumber);
-                    routeInfo.innerHTML = `
-                        <strong>Current Route:</strong> ${bus.routeId ? getRouteName(bus.routeId) + ' (ID: ' + bus.routeId + ')' : 'None'}
-                        <br><strong>Selected Cached Route:</strong> ${routeName} (ID: ${routeId})
-                    `;
-                }
-            }
+            updateSelectionInfo(busNumber);
             
-            // Show inline notification instead of toast that closes the modal
+            // Show inline notification
             const notification = document.createElement('div');
             notification.innerHTML = `
                 <div style="margin-top: 10px; padding: 8px 12px; background: var(--success-light); color: var(--success); border-radius: 6px; font-size: 13px; display: flex; align-items: center; gap: 8px;">
@@ -2825,60 +3114,6 @@
                     notification.remove();
                 }
             }, 3000);
-        }
-
-        // Update driver selection status display
-        function updateDriverStatus(busNumber) {
-            const driverSelect = document.getElementById(`driverSelect-${busNumber}`);
-            const driverStatus = document.getElementById(`driverStatus-${busNumber}`);
-            const selectedOption = driverSelect.options[driverSelect.selectedIndex];
-            
-            if (!selectedOption || !selectedOption.value) {
-                driverStatus.style.display = 'none';
-                return;
-            }
-            
-            const isAvailable = selectedOption.getAttribute('data-available') === 'true';
-            const assignedBus = selectedOption.getAttribute('data-assigned-bus');
-            
-            if (assignedBus && assignedBus !== busNumber) {
-                driverStatus.style.display = 'block';
-                driverStatus.style.background = 'var(--warning-light)';
-                driverStatus.style.color = 'var(--warning)';
-                driverStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> This driver is already assigned to Bus ${assignedBus}`;
-            } else {
-                driverStatus.style.display = 'block';
-                driverStatus.style.background = 'var(--success-light)';
-                driverStatus.style.color = 'var(--success)';
-                driverStatus.innerHTML = `<i class="fas fa-check-circle"></i> This driver is available`;
-            }
-        }
-
-        // Update route selection status display
-        function updateRouteStatus(busNumber) {
-            const routeSelect = document.getElementById(`routeSelect-${busNumber}`);
-            const routeStatus = document.getElementById(`routeStatus-${busNumber}`);
-            const selectedOption = routeSelect.options[routeSelect.selectedIndex];
-            
-            if (!selectedOption || !selectedOption.value) {
-                routeStatus.style.display = 'none';
-                return;
-            }
-            
-            const isAvailable = selectedOption.getAttribute('data-available') === 'true';
-            const assignedBus = selectedOption.getAttribute('data-assigned-bus');
-            
-            if (assignedBus && assignedBus !== busNumber) {
-                routeStatus.style.display = 'block';
-                routeStatus.style.background = 'var(--warning-light)';
-                routeStatus.style.color = 'var(--warning)';
-                routeStatus.innerHTML = `<i class="fas fa-exclamation-triangle"></i> This route is already assigned to Bus ${assignedBus}`;
-            } else {
-                routeStatus.style.display = 'block';
-                routeStatus.style.background = 'var(--success-light)';
-                routeStatus.style.color = 'var(--success)';
-                routeStatus.innerHTML = `<i class="fas fa-check-circle"></i> This route is available`;
-            }
         }
 
         // Send schedule to server using the new endpoint
@@ -2911,16 +3146,9 @@
             const bus = buses.find(b => b.number === busNumber);
             if (!bus) return;
 
-            const driverSelect = document.getElementById(`driverSelect-${busNumber}`);
-            const routeSelect = document.getElementById(`routeSelect-${busNumber}`);
-            
-            let selectedDriverId = driverSelect.value;
-            let selectedRouteId = routeSelect.value;
-            
-            // If no route is selected in dropdown but a cached route is selected, use that
-            if (!selectedRouteId && selectedCachedRoute[busNumber]) {
-                selectedRouteId = selectedCachedRoute[busNumber].route_id.toString();
-            }
+            let selectedDriverId = selectedDriver[busNumber] ? selectedDriver[busNumber].driver_id.toString() : null;
+            let selectedRouteId = selectedRoute[busNumber] ? selectedRoute[busNumber].route_id.toString() : 
+                                (selectedCachedRoute[busNumber] ? selectedCachedRoute[busNumber].route_id.toString() : null);
             
             // Check if required fields are filled
             if (!selectedDriverId || !selectedRouteId) {
@@ -3076,8 +3304,10 @@
                 bus.originalDriverId = bus.driverId;
                 bus.originalRouteId = bus.routeId;
                 
-                // Clear selected cached route
+                // Clear selected cached route, driver, and route
                 delete selectedCachedRoute[busNumber];
+                delete selectedDriver[busNumber];
+                delete selectedRoute[busNumber];
                 
                 renderBuses();
                 
