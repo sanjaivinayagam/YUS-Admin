@@ -1136,7 +1136,6 @@
             transition: all 0.3s ease;
             z-index: 1000;
             border-left: 4px solid transparent;
-            max-width: 90%;
         }
         
         .notification.show {
@@ -1665,8 +1664,6 @@
         @media (min-width: 577px) and (max-width: 768px) {
             .mobile-menu-toggle {
                 display: block;
-                
-                
             }
             
             .sidebar {
@@ -2791,10 +2788,10 @@
     <!-- Restore Confirmation Modal -->
     <div class="restore-modal" id="restore-modal">
         <div class="restore-modal-content">
-            <h3>Restore Route</h3>
-            <p>Are you sure you want to restore this backup route?</p>
+            <h3 id="restore-title">Restore Route</h3>
+            <p id="restore-description">Are you sure you want to restore this backup route?</p>
             
-            <div class="restore-route-info">
+            <div class="restore-route-info" id="restore-route-info">
                 <!-- Route details will be inserted here -->
             </div>
             
@@ -2823,6 +2820,7 @@
         // Backup routes variables
         let backupRoutes = [];
         let routeToRestore = null;
+        let backupIndexToRestore = null;
         let backupRoutesFetched = false;
         
         // Driver removal request variables
@@ -2992,8 +2990,8 @@
             });
             
             document.getElementById('confirm-restore').addEventListener('click', function() {
-                if (routeToRestore) {
-                    restoreBackupRouteToServer(routeToRestore);
+                if (routeToRestore && backupIndexToRestore !== null) {
+                    restoreBackupRouteToServer(routeToRestore, backupIndexToRestore);
                 }
             });
             
@@ -3105,47 +3103,64 @@
         }
         
         // Show restore confirmation modal
-        function showRestoreModal(backupId, routeName) {
-            const backup = backupRoutes.find(b => (b.backup_id || b.id).toString() === backupId);
-            if (!backup) return;
+        function showRestoreModal(backupIndex, routeName) {
+            const backup = backupRoutes[parseInt(backupIndex)];
             
-            routeToRestore = backup;
-            
-            const modal = document.getElementById('restore-modal');
-            const routeInfo = modal.querySelector('.restore-route-info');
-            
-            // Get route name from backup data
-            let displayRouteName = 'Unnamed Route';
-            try {
-                // Try to parse route_data if it exists
-                let routeData = backup;
-                if (backup.route_data && typeof backup.route_data === 'string') {
-                    routeData = JSON.parse(backup.route_data);
-                }
-                
-                // Extract route name from various possible fields
-                if (routeData.up_route_json && routeData.up_route_json.up_route_name) {
-                    displayRouteName = routeData.up_route_json.up_route_name;
-                } else if (routeData.up_route && routeData.up_route.up_route_name) {
-                    displayRouteName = routeData.up_route.up_route_name;
-                } else if (routeData.route_name) {
-                    displayRouteName = routeData.route_name;
-                } else if (routeData.name) {
-                    displayRouteName = routeData.name;
-                }
-            } catch (e) {
-                displayRouteName = routeName || 'Unnamed Route';
+            if (!backup) {
+                console.error('Backup not found at index:', backupIndex);
+                showNotification('Backup route not found', 'error');
+                return;
             }
             
-            modal.querySelector('h3').textContent = `Restore "${displayRouteName}"`;
-            modal.querySelector('p').textContent = `This will restore the backup route "${displayRouteName}" to the active routes.`;
+            routeToRestore = backup;
+            backupIndexToRestore = backupIndex;
+            
+            const modal = document.getElementById('restore-modal');
+            const routeInfo = document.getElementById('restore-route-info');
+            
+            // Parse and extract route data
+            let routeData;
+            try {
+                if (backup.route_data && typeof backup.route_data === 'string') {
+                    routeData = JSON.parse(backup.route_data);
+                } else {
+                    routeData = backup;
+                }
+                
+                // If routeData has up_route_json, use that
+                if (routeData.up_route_json) {
+                    routeData = routeData.up_route_json;
+                }
+            } catch (e) {
+                routeData = backup;
+            }
+            
+            const displayRouteName = routeData.up_route_name || routeData.route_name || routeData.name || 'Unnamed Route';
+            const src = routeData.src || 'Not specified';
+            const dest = routeData.dest || 'Not specified';
+            const stops = routeData.stops || routeData.route_stops || [];
+            
+            // Extract timestamp from backup data
+            let timestamp = 'Unknown';
+            try {
+                timestamp = new Date(backup.created_at || backup.timestamp || backup.backup_date || Date.now()).toLocaleString();
+            } catch (e) {
+                timestamp = 'Unknown';
+            }
+            
+            // Update modal content
+            document.getElementById('restore-title').textContent = `Restore "${displayRouteName}"`;
+            document.getElementById('restore-description').textContent = `This will restore the backup route "${displayRouteName}" to the active routes.`;
             
             routeInfo.innerHTML = `
                 <h4>Route Details:</h4>
                 <ul>
                     <li><strong>Route Name:</strong> ${displayRouteName}</li>
-                    <li><strong>Backup Date:</strong> ${new Date(backup.created_at || backup.timestamp || Date.now()).toLocaleString()}</li>
-                    <li><strong>Backup ID:</strong> ${backup.backup_id || backup.id || 'N/A'}</li>
+                    <li><strong>Source:</strong> ${src}</li>
+                    <li><strong>Destination:</strong> ${dest}</li>
+                    <li><strong>Number of Stops:</strong> ${stops.length}</li>
+                    <li><strong>Backup Date:</strong> ${timestamp}</li>
+                    <li><strong>Backup Index:</strong> ${backupIndex}</li>
                 </ul>
             `;
             
@@ -3155,6 +3170,7 @@
         // Hide restore modal
         function hideRestoreModal() {
             routeToRestore = null;
+            backupIndexToRestore = null;
             document.getElementById('restore-modal').classList.remove('show');
         }
         
@@ -3184,9 +3200,6 @@
                 
                 // Redirect to login page after 2 seconds
                 setTimeout(() => {
-                    // You can redirect to your login page here
-                    // For example: window.location.href = '/login.html';
-                    // For now, we'll just reload the page
                     window.location.reload();
                 }, 2000);
                 
@@ -3214,7 +3227,6 @@
                 }
                 
                 const data = await response.json();
-                console.log('Backup routes data:', data); // Debug log
                 
                 if (data === null || !Array.isArray(data)) {
                     backupRoutes = [];
@@ -3251,56 +3263,30 @@
             
             emptyState.style.display = 'none';
             
-            backupRoutes.forEach(backup => {
+            backupRoutes.forEach((backup, index) => {
                 // Extract route information
-                let routeName = 'Unnamed Route';
+                let routeData;
                 try {
-                    // Try to parse route_data if it exists
-                    let routeData = backup;
                     if (backup.route_data && typeof backup.route_data === 'string') {
                         routeData = JSON.parse(backup.route_data);
+                    } else {
+                        routeData = backup;
                     }
                     
-                    // Extract route name from various possible fields
-                    if (routeData.up_route_json && routeData.up_route_json.up_route_name) {
-                        routeName = routeData.up_route_json.up_route_name;
-                    } else if (routeData.up_route && routeData.up_route.up_route_name) {
-                        routeName = routeData.up_route.up_route_name;
-                    } else if (routeData.route_name) {
-                        routeName = routeData.route_name;
-                    } else if (routeData.name) {
-                        routeName = routeData.name;
+                    // If routeData has up_route_json, use that
+                    if (routeData.up_route_json) {
+                        routeData = routeData.up_route_json;
                     }
                 } catch (e) {
-                    routeName = 'Unnamed Route';
+                    routeData = backup;
                 }
                 
-                const backupId = backup.backup_id || backup.id || 'N/A';
+                const routeName = routeData.up_route_name || routeData.route_name || routeData.name || 'Unnamed Route';
+                const src = routeData.src || 'Not specified';
+                const dest = routeData.dest || 'Not specified';
+                const stops = routeData.stops || routeData.route_stops || [];
+                const backupId = index;
                 const timestamp = backup.created_at || backup.timestamp || backup.backup_date || Date.now();
-                
-                // Extract stops count
-                let stopCount = 0;
-                try {
-                    let routeData = backup;
-                    if (backup.route_data && typeof backup.route_data === 'string') {
-                        routeData = JSON.parse(backup.route_data);
-                    }
-                    
-                    // Extract stops from various possible structures
-                    if (routeData.up_route_json && routeData.up_route_json.stops && Array.isArray(routeData.up_route_json.stops)) {
-                        stopCount = routeData.up_route_json.stops.length;
-                    } else if (routeData.up_route && routeData.up_route.stops && Array.isArray(routeData.up_route.stops)) {
-                        stopCount = routeData.up_route.stops.length;
-                    } else if (routeData.stops && Array.isArray(routeData.stops)) {
-                        stopCount = routeData.stops.length;
-                    } else if (routeData.route_stops && Array.isArray(routeData.route_stops)) {
-                        stopCount = routeData.route_stops.length;
-                    } else if (routeData.number_of_stops) {
-                        stopCount = routeData.number_of_stops;
-                    }
-                } catch (e) {
-                    stopCount = 0;
-                }
                 
                 const backupCard = document.createElement('div');
                 backupCard.className = 'backup-route-card';
@@ -3311,9 +3297,12 @@
                             <div class="backup-timestamp">
                                 <i class="far fa-clock"></i> ${new Date(timestamp).toLocaleString()}
                             </div>
+                            <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">
+                                ${src} → ${dest} • Stops: ${stops.length}
+                            </div>
                         </div>
                         <div class="backup-route-actions">
-                            <div class="backup-route-action-btn view-backup" data-id="${backupId}">
+                            <div class="backup-route-action-btn view-backup" data-index="${backupId}" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </div>
                         </div>
@@ -3322,14 +3311,13 @@
                         <div class="backup-status ${backup.is_active !== false ? 'status-active' : 'status-archived'}">
                             ${backup.is_active !== false ? 'Active' : 'Archived'}
                         </div>
-                        • ID: ${backupId} 
-                        • Stops: ${stopCount}
+                        • Backup Index: ${backupId}
                     </div>
                     <div class="backup-route-footer">
                         <div class="backup-route-date">
-                            Backup ID: ${backupId}
+                            Format: ${routeData.up_route_json ? 'Standard' : 'Custom'}
                         </div>
-                        <button class="btn-primary restore-btn restore-backup-route" data-id="${backupId}" data-name="${routeName}">
+                        <button class="btn-primary restore-btn restore-backup-route" data-index="${backupId}" data-name="${routeName}">
                             <i class="fas fa-undo"></i> Restore
                         </button>
                     </div>
@@ -3341,23 +3329,23 @@
             // Add event listeners
             backupRoutesList.querySelectorAll('.view-backup').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    const backupId = this.getAttribute('data-id');
-                    viewBackupDetails(backupId);
+                    const backupIndex = this.getAttribute('data-index');
+                    viewBackupDetails(backupIndex);
                 });
             });
             
             backupRoutesList.querySelectorAll('.restore-backup-route').forEach(btn => {
                 btn.addEventListener('click', function() {
-                    const backupId = this.getAttribute('data-id');
+                    const backupIndex = this.getAttribute('data-index');
                     const routeName = this.getAttribute('data-name');
-                    showRestoreModal(backupId, routeName);
+                    showRestoreModal(backupIndex, routeName);
                 });
             });
         }
         
         // View backup route details
-        function viewBackupDetails(backupId) {
-            const backup = backupRoutes.find(b => (b.backup_id || b.id).toString() === backupId);
+        function viewBackupDetails(backupIndex) {
+            const backup = backupRoutes[parseInt(backupIndex)];
             if (backup) {
                 let routeData;
                 try {
@@ -3366,98 +3354,118 @@
                     } else {
                         routeData = backup;
                     }
+                    
+                    // If routeData has up_route_json, use that
+                    if (routeData.up_route_json) {
+                        routeData = routeData.up_route_json;
+                    }
                 } catch (e) {
                     routeData = backup;
                 }
                 
-                // Extract route name
-                let routeName = 'Unnamed Route';
-                if (routeData.up_route_json && routeData.up_route_json.up_route_name) {
-                    routeName = routeData.up_route_json.up_route_name;
-                } else if (routeData.up_route && routeData.up_route.up_route_name) {
-                    routeName = routeData.up_route.up_route_name;
-                } else if (routeData.route_name) {
-                    routeName = routeData.route_name;
-                } else if (routeData.name) {
-                    routeName = routeData.name;
-                }
-                
-                // Extract stops count
-                let stopCount = 0;
-                let stops = [];
-                if (routeData.up_route_json && routeData.up_route_json.stops && Array.isArray(routeData.up_route_json.stops)) {
-                    stops = routeData.up_route_json.stops;
-                    stopCount = stops.length;
-                } else if (routeData.up_route && routeData.up_route.stops && Array.isArray(routeData.up_route.stops)) {
-                    stops = routeData.up_route.stops;
-                    stopCount = stops.length;
-                } else if (routeData.stops && Array.isArray(routeData.stops)) {
-                    stops = routeData.stops;
-                    stopCount = stops.length;
-                } else if (routeData.route_stops && Array.isArray(routeData.route_stops)) {
-                    stops = routeData.route_stops;
-                    stopCount = stops.length;
-                } else if (routeData.number_of_stops) {
-                    stopCount = routeData.number_of_stops;
-                }
-                
+                const routeName = routeData.up_route_name || routeData.route_name || routeData.name || 'Unnamed Route';
+                const src = routeData.src || 'Not specified';
+                const dest = routeData.dest || 'Not specified';
+                const stops = routeData.stops || routeData.route_stops || [];
                 const timestamp = backup.created_at || backup.timestamp || backup.backup_date || Date.now();
+                
+                // Format stops information
+                let stopsInfo = 'No stops available';
+                if (stops.length > 0) {
+                    stopsInfo = stops.map((stop, index) => {
+                        const stopName = stop.location_name || stop.stop_name || stop.name || `Stop ${index + 1}`;
+                        const lat = stop.lat || stop.latitude || 'N/A';
+                        const lon = stop.lon || stop.longitude || 'N/A';
+                        return `${index + 1}. ${stopName} (Lat: ${lat}, Lon: ${lon})`;
+                    }).join('\n');
+                }
                 
                 const details = `
 Route Name: ${routeName}
-Backup ID: ${backup.backup_id || backup.id || 'N/A'}
+Source: ${src}
+Destination: ${dest}
+Backup Index: ${backupIndex}
 Created: ${new Date(timestamp).toLocaleString()}
 Status: ${backup.is_active !== false ? 'Active' : 'Archived'}
-Stops: ${stopCount}
+Number of Stops: ${stops.length}
 
-${stops.length > 0 ? 'Stop Details:' : 'No stops available'}
-${stops.length > 0 ? stops.map((stop, index) => {
-    const stopName = stop.name || stop.stop_name || `Stop ${index + 1}`;
-    const lat = stop.lat || stop.latitude || 'N/A';
-    const lng = stop.lng || stop.longitude || 'N/A';
-    return `${index + 1}. ${stopName} - Lat: ${lat}, Lng: ${lng}`;
-}).join('\n') : ''}
+${stops.length > 0 ? 'Stop Details:\n' + stopsInfo : stopsInfo}
                 `;
                 
                 alert(details);
             }
         }
         
-        // NEW FUNCTION: Restore backup route to server
-        async function restoreBackupRouteToServer(backup) {
+        // Restore backup route to server - FIXED VERSION with correct format
+        async function restoreBackupRouteToServer(backup, backupIndex) {
             showLoading(true);
             
             try {
-                console.log('Sending backup data to server:', backup);
+                console.log('Original backup data:', backup);
                 
-                // Prepare the data to send
-                let routeDataToSend;
-                
-                // If backup has route_data field, use that
+                // Parse and extract the route data
+                let routeData;
                 if (backup.route_data && typeof backup.route_data === 'string') {
-                    try {
-                        routeDataToSend = JSON.parse(backup.route_data);
-                    } catch (e) {
-                        routeDataToSend = backup;
-                    }
+                    routeData = JSON.parse(backup.route_data);
                 } else {
-                    routeDataToSend = backup;
+                    routeData = backup;
                 }
                 
-                // If routeDataToSend has up_route_json, use that
-                if (routeDataToSend.up_route_json) {
-                    routeDataToSend = routeDataToSend.up_route_json;
+                // If routeData has up_route_json, use that as the base
+                if (routeData.up_route_json) {
+                    routeData = routeData.up_route_json;
                 }
                 
-                // Extract route name for logging
-                let routeName = 'Unnamed Route';
-                if (routeDataToSend.up_route_name) {
-                    routeName = routeDataToSend.up_route_name;
-                } else if (routeDataToSend.route_name) {
-                    routeName = routeDataToSend.route_name;
-                } else if (routeDataToSend.name) {
-                    routeName = routeDataToSend.name;
+                // Extract route name
+                let routeName = routeData.up_route_name || routeData.route_name || routeData.name || 'Unnamed Route';
+                let src = routeData.src || 'Source';
+                let dest = routeData.dest || 'Destination';
+                
+                // Prepare the request body in the exact format expected by the server
+                const requestBody = {
+                    "route_id": routeData.route_id || Date.now(), // Use existing ID or generate new one
+                    "path": "SAME", // Default value as per your example
+                    "direction": "UP", // Default to UP direction
+                    "up_route_json": {
+                        "route_id": routeData.route_id || Date.now(),
+                        "up_route_name": routeData.up_route_name || routeName,
+                        "down_route_name": routeData.down_route_name || `Return from ${routeData.up_route_name || routeName}`,
+                        "src": src,
+                        "dest": dest,
+                        "stops": []
+                    }
+                };
+                
+                // Extract and format stops if available
+                let stops = routeData.stops || routeData.route_stops || [];
+                if (stops.length > 0) {
+                    requestBody.up_route_json.stops = stops.map((stop, index) => {
+                        return {
+                            "stop_sequence": index + 1,
+                            "location_name": stop.location_name || stop.stop_name || stop.name || `Stop ${index + 1}`,
+                            "lat": stop.lat ? stop.lat.toString() : (stop.latitude ? stop.latitude.toString() : "0.0"),
+                            "lon": stop.lng ? stop.lng.toString() : (stop.lon ? stop.lon.toString() : (stop.longitude ? stop.longitude.toString() : "0.0")),
+                            "is_stop": true,
+                            "departure_time": stop.departure_time || "",
+                            "arrival_time": stop.arrival_time || ""
+                        };
+                    });
+                } else {
+                    // Create default stops if none available
+                    requestBody.up_route_json.stops = [
+                        {
+                            "stop_sequence": 1,
+                            "location_name": "Start Point",
+                            "lat": "0.0",
+                            "lon": "0.0",
+                            "is_stop": true,
+                            "departure_time": "",
+                            "arrival_time": "08:00"
+                        }
+                    ];
                 }
+                
+                console.log('Formatted request body for server:', JSON.stringify(requestBody, null, 2));
                 
                 // Send POST request to restore endpoint
                 const response = await fetch('https://yus.kwscloud.in/yus/Save_backup_route', {
@@ -3465,7 +3473,7 @@ ${stops.length > 0 ? stops.map((stop, index) => {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(routeDataToSend)
+                    body: JSON.stringify(requestBody)
                 });
                 
                 if (!response.ok) {
